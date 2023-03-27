@@ -2,7 +2,6 @@ package run;
 
 import java.util.HashMap;
 import java.util.Set;
-import java.util.Vector;
 
 import etu1765.framework.Mapping;
 import use.Package;
