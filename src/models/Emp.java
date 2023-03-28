@@ -4,7 +4,7 @@ import annotation.Url;
 
 public class Emp {
   
-  @Url(value = "/Emp/find-all")
+  @Url(value = "/Emp/findAll")
   public void findAll() {}
 
 }
