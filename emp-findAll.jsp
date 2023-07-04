@@ -1,3 +1,8 @@
+<%@page import="model.Emp, java.util.Set, java.util.HashMap"%>
+<%
+  HashMap<String, Object> data = (HashMap<String, Object>) request.getAttribute("data");
+%>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,8 +12,16 @@
   <title>Document</title>
 </head>
 <body>
+
+  <h1>Hello</h1>
   
-  <h1>Emp findAll</h1>
+  <%
+    Set<String> keys = data.keySet();
+    for (String key : keys) {
+      Emp e = (Emp) data.get(key);
+      out.println("<p>" + e.getName() + " " + e.getAge() + "</p>");
+    }
+  %>
 
 </body>
 </html>
