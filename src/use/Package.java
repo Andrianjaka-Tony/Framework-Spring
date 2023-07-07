@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Vector;
 
+import annotation.Scope;
 import annotation.Url;
 import etu1765.framework.Mapping;
 
@@ -60,6 +61,22 @@ public class Package {
           Annotation annotation = method.getDeclaredAnnotation(Url.class);
           String value = (String) annotation.getClass().getDeclaredMethod("value").invoke(annotation);
           reponse.put(value, new Mapping(className, method.getName()));
+        }
+      }
+    }
+    return reponse;
+  }
+
+  public static HashMap<String, Object> singletons(String absolutePath) throws Exception {
+    Vector<String> getClasses = Package.getClasses(absolutePath);
+    HashMap<String, Object> reponse = new HashMap<String, Object>();
+    for (String className : getClasses) {
+      Class<?> classe = Class.forName(className);
+      if (classe.isAnnotationPresent(Scope.class)) {
+        Annotation annotation = classe.getDeclaredAnnotation(Scope.class);
+        String value = (String) annotation.getClass().getDeclaredMethod("value").invoke(annotation);
+        if (value.compareToIgnoreCase("singleton") == 0) {
+          reponse.put(className, classe.getDeclaredConstructor().newInstance());
         }
       }
     }

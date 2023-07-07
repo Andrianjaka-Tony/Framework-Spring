@@ -14,8 +14,8 @@ import javax.swing.text.Utilities;
 
 import etu1765.framework.FileUpload;
 import etu1765.framework.Mapping;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.Part;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.Part;
 
 public class Utility {
 
@@ -105,6 +105,58 @@ public class Utility {
     return reponse;
   }
 
+  public static void uploadFile(Object reponse, HttpServletRequest request, String parameter, Field field)
+      throws Exception {
+    Part filePart;
+    try {
+      filePart = request.getPart(parameter);
+    } catch (Exception e) {
+      throw e;
+    }
+    InputStream inputStream = filePart.getInputStream();
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    byte[] buffer = new byte[4096];
+    int bytesRead;
+    while ((bytesRead = inputStream.read(buffer)) != -1) {
+      byteArrayOutputStream.write(buffer, 0, bytesRead);
+    }
+
+    byte[] fileBytes = byteArrayOutputStream.toByteArray();
+    byteArrayOutputStream.close();
+    inputStream.close();
+    String filename = filePart.getSubmittedFileName();
+    String path = "D:/Apache/Tomcat/webapps/framework/Files/" + filename;
+    filePart.write(path);
+    FileUpload fileUpload = new FileUpload(filename, path, fileBytes);
+    field.set(reponse, fileUpload);
+  }
+
+  public static void setValue(Object object, HttpServletRequest request, String parameter, Field field)
+      throws Exception {
+    String value = request.getParameter(parameter);
+    if (field.getGenericType().getTypeName().compareTo("java.lang.Integer") == 0) {
+      field.set(object, Integer.valueOf(value));
+    } else if (field.getGenericType().getTypeName().compareTo("java.lang.Double") == 0) {
+      field.set(object, Double.valueOf(value));
+    } else {
+      field.set(object, value);
+    }
+  }
+
+  public static void runObject(Object object, HttpServletRequest request, Vector<String> parameters) throws Exception {
+    for (String parameter : parameters) {
+      Field field = object.getClass().getDeclaredField(parameter);
+      field.setAccessible(true);
+
+      if (object.getClass().getDeclaredField(parameter).getType().getSimpleName()
+          .compareToIgnoreCase("FileUpload") == 0) {
+        Utility.uploadFile(object, request, parameter, field);
+      } else {
+        Utility.setValue(object, request, parameter, field);
+      }
+    }
+  }
+
   public static Object save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls) throws Exception {
     String className = Utility.classToSave(request, mappingUrls);
     Vector<String> parameters = Utility.fields(className);
@@ -112,47 +164,23 @@ public class Utility {
     Constructor<?> constructor = clazz.getConstructor();
 
     Object reponse = constructor.newInstance();
-    for (String parameter : parameters) {
-      Field field = reponse.getClass().getDeclaredField(parameter);
-      field.setAccessible(true);
-
-      if (reponse.getClass().getDeclaredField(parameter).getType().getSimpleName()
-          .compareToIgnoreCase("FileUpload") == 0) {
-        Part filePart;
-        try {
-          filePart = request.getPart(parameter);
-        } catch (Exception e) {
-          throw e;
-        }
-        InputStream inputStream = filePart.getInputStream();
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
-          byteArrayOutputStream.write(buffer, 0, bytesRead);
-        }
-
-        byte[] fileBytes = byteArrayOutputStream.toByteArray();
-        byteArrayOutputStream.close();
-        inputStream.close();
-        String filename = filePart.getSubmittedFileName();
-        String path = "D:/Apache/Tomcat/webapps/framework/Files/" + filename;
-        filePart.write(path);
-        FileUpload fileUpload = new FileUpload(filename, path, fileBytes);
-        field.set(reponse, fileUpload);
-      } else {
-        String value = request.getParameter(parameter);
-        if (field.getGenericType().getTypeName().compareTo("int") == 0) {
-          field.set(reponse, Integer.valueOf(value));
-        } else if (field.getGenericType().getTypeName().compareTo("double") == 0) {
-          field.set(reponse, Double.valueOf(value));
-        } else {
-          field.set(reponse, value);
-        }
-      }
-    }
+    Utility.runObject(reponse, request, parameters);
 
     return reponse;
+  }
+
+  public static void save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, Object object)
+      throws Exception {
+    Vector<String> parameters = Utility.fields(object.getClass().getName());
+    Utility.runObject(object, request, parameters);
+  }
+
+  public static void resetObject(Object object) throws Exception {
+    Field[] fields = object.getClass().getDeclaredFields();
+    for (Field field : fields) {
+      field.setAccessible(true);
+      field.set(object, null);
+    }
   }
 
 }

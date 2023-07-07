@@ -7,7 +7,7 @@ import java.util.Set;
 import java.util.Vector;
 
 import etu1765.framework.Mapping;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 
 public class ModelView {
   private String viewName;

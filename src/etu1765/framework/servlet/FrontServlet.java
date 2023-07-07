@@ -9,13 +9,13 @@ import use.Package;
 import use.Utility;
 import use.ModelView;
 import etu1765.framework.Mapping;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.MultipartConfig;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @MultipartConfig(fileSizeThreshold = 2240 * 2240, maxFileSize = 2240 * 2240, maxRequestSize = 2240 * 2240 * 5 * 5)
 public class FrontServlet extends HttpServlet {
@@ -31,6 +31,7 @@ public class FrontServlet extends HttpServlet {
     this.path = this.path.replace('\\', '/');
     try {
       this.mappingUrls = Package.scanPackages(this.path);
+      this.objects = Package.singletons(this.path);
     } catch (Exception e) {
       System.out.println(e.getMessage());
     }
@@ -59,8 +60,16 @@ public class FrontServlet extends HttpServlet {
     // si on save
     if (save) {
       try {
-        Object object = Utility.save(req, mappingUrls);
-        modelView.addItem("form", object);
+        String className = Utility.classToSave(req, mappingUrls);
+        if (this.objects.get(className) != null) {
+          Utility.resetObject(this.objects.get(className));
+          Utility.save(req, mappingUrls, this.objects.get(className));
+          modelView.addItem("form", this.objects.get(className));
+          System.out.println(this.objects.get(className));
+        } else {
+          Object object = Utility.save(req, mappingUrls);
+          modelView.addItem("form", object);
+        }
       } catch (Exception e) {
         out.println(e.getMessage());
       }
