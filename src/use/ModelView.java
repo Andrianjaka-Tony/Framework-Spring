@@ -15,10 +15,13 @@ public class ModelView {
   private HashMap<String, Object> datas;
   private HashMap<String, Object> sessions;
   private boolean isJson;
+  private boolean invalidateSession;
+  private Vector<String> removeSession;
 
   public ModelView() {
     this.datas = new HashMap<String, Object>();
     this.sessions = new HashMap<String, Object>();
+    this.removeSession = new Vector<String>();
   }
 
   public ModelView(String view) {
@@ -141,5 +144,21 @@ public class ModelView {
 
   public void setJson(boolean isJson) {
     this.isJson = isJson;
+  }
+
+  public boolean isInvalidateSession() {
+    return invalidateSession;
+  }
+
+  public void setInvalidateSession(boolean invalidateSession) {
+    this.invalidateSession = invalidateSession;
+  }
+
+  public Vector<String> getRemoveSession() {
+    return removeSession;
+  }
+
+  public void setRemoveSession(Vector<String> removeSession) {
+    this.removeSession = removeSession;
   }
 }
