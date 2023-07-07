@@ -14,6 +14,7 @@ public class ModelView {
   private String viewName;
   private HashMap<String, Object> datas;
   private HashMap<String, Object> sessions;
+  private boolean isJson;
 
   public ModelView() {
     this.datas = new HashMap<String, Object>();
@@ -108,7 +109,6 @@ public class ModelView {
     } else {
       return ModelView.invokeWithParameters(url, mappingUrls, classe, methodName, request, o);
     }
-
   }
 
   public String getViewName() {
@@ -133,5 +133,13 @@ public class ModelView {
 
   public void setSessions(HashMap<String, Object> sessions) {
     this.sessions = sessions;
+  }
+
+  public boolean isJson() {
+    return isJson;
+  }
+
+  public void setJson(boolean isJson) {
+    this.isJson = isJson;
   }
 }
