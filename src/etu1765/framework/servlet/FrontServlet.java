@@ -41,7 +41,7 @@ public class FrontServlet extends HttpServlet {
         RequestDispatcher dispatcher = req.getRequestDispatcher("index.jsp");
         dispatcher.forward(req, resp);
       }
-      ModelView modelView = ModelView.loadView(url, this.mappingUrls);
+      ModelView modelView = ModelView.loadView(url, this.mappingUrls, req);
       if (Utility.isSave(req, mappingUrls)) {
         try {
           Object object = Utility.save(req, mappingUrls);
