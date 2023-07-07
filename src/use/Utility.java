@@ -10,10 +10,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
-import javax.swing.text.Utilities;
-
 import etu1765.framework.FileUpload;
 import etu1765.framework.Mapping;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.Part;
 
@@ -125,7 +124,7 @@ public class Utility {
     byteArrayOutputStream.close();
     inputStream.close();
     String filename = filePart.getSubmittedFileName();
-    String path = "D:/Apache/Tomcat/webapps/framework/Files/" + filename;
+    String path = "D:/Apache Tomcat/webapps/framework/Files/" + filename;
     filePart.write(path);
     FileUpload fileUpload = new FileUpload(filename, path, fileBytes);
     field.set(reponse, fileUpload);
