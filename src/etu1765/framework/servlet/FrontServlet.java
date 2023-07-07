@@ -31,6 +31,7 @@ public class FrontServlet extends HttpServlet {
   HashMap<String, Mapping> mappingUrls;
   HashMap<String, Object> objects;
   String path;
+  String naturalPath;
 
   public void updateSession(HttpServletRequest request, ModelView modelView) {
     HttpSession session = request.getSession();
@@ -52,6 +53,16 @@ public class FrontServlet extends HttpServlet {
     }
 
     return sessionValuesMap;
+  }
+
+  public void invalidateSession(HttpServletRequest request) {
+    HttpSession session = request.getSession();
+
+    java.util.Enumeration<String> attributeNames = session.getAttributeNames();
+    while (attributeNames.hasMoreElements()) {
+      String attributeName = attributeNames.nextElement();
+      session.setAttribute(attributeName, null);
+    }
   }
 
   public Object realObject(String className) {
@@ -141,12 +152,12 @@ public class FrontServlet extends HttpServlet {
 
   public void executeSingleton(HttpServletRequest req, ModelView modelView, String className) throws Exception {
     Utility.resetObject(this.objects.get(className));
-    Utility.save(req, mappingUrls, this.objects.get(className));
+    Utility.save(req, mappingUrls, this.objects.get(className), naturalPath);
     modelView.addItem("form", this.objects.get(className));
   }
 
   public void executeNonSingleton(HttpServletRequest req, ModelView modelView, String url) throws Exception {
-    Object object = Utility.save(req, mappingUrls, url);
+    Object object = Utility.save(req, mappingUrls, url, naturalPath);
     modelView.addItem("form", object);
   }
 
@@ -174,6 +185,7 @@ public class FrontServlet extends HttpServlet {
 
   public void init() {
     ServletContext context = getServletContext();
+    this.naturalPath = context.getRealPath("");
     this.path = context.getRealPath("");
     this.path += "WEB-INF\\classes";
     this.path = this.path.replace('\\', '/');
@@ -213,6 +225,17 @@ public class FrontServlet extends HttpServlet {
     return restAPI;
   }
 
+  public void invalidate(ModelView modelView, HttpServletRequest req) {
+    if (modelView.isInvalidateSession()) {
+      invalidateSession(req);
+    } else {
+      HttpSession session = req.getSession();
+      for (String sessionName : modelView.getRemoveSession()) {
+        session.setAttribute(sessionName, null);
+      }
+    }
+  }
+
   protected void processRequest(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException, Exception {
     String url = String.valueOf(req.getRequestURL());
@@ -225,6 +248,7 @@ public class FrontServlet extends HttpServlet {
       out.println(json);
     } else {
       ModelView modelView = this.loadView(url, req);
+      invalidate(modelView, req);
       if (!modelView.isJson()) {
         this.normalTreatment(modelView, req, resp, url);
       } else {

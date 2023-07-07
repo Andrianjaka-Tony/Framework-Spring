@@ -1,6 +1,7 @@
 package use;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -70,7 +71,13 @@ public class Utility {
     return reponse;
   }
 
-  public static void uploadFile(Object reponse, HttpServletRequest request, String parameter, Field field)
+  public static String currentPath() {
+    String reponse = new File("").getAbsolutePath();
+    return reponse;
+  }
+
+  public static void uploadFile(Object reponse, HttpServletRequest request, String parameter, Field field,
+      String destination)
       throws Exception {
     Part filePart;
     try {
@@ -90,7 +97,8 @@ public class Utility {
     byteArrayOutputStream.close();
     inputStream.close();
     String filename = filePart.getSubmittedFileName();
-    String path = "D:/Apache Tomcat/webapps/framework/Files/" + filename;
+    String path = destination + "Files\\" + filename;
+    System.out.println(path);
     filePart.write(path);
     FileUpload fileUpload = new FileUpload(filename, path, fileBytes);
     field.set(reponse, fileUpload);
@@ -111,7 +119,8 @@ public class Utility {
     }
   }
 
-  public static void runObject(Object object, HttpServletRequest request, Vector<String> parameters) throws Exception {
+  public static void runObject(Object object, HttpServletRequest request, Vector<String> parameters, String destination)
+      throws Exception {
     for (String parameter : parameters) {
       Field field = object.getClass().getDeclaredField(parameter);
       field.setAccessible(true);
@@ -119,7 +128,7 @@ public class Utility {
       if (object.getClass().getDeclaredField(parameter).getType().getSimpleName()
           .compareToIgnoreCase("FileUpload") == 0) {
         System.out.println("Upload");
-        Utility.uploadFile(object, request, parameter, field);
+        Utility.uploadFile(object, request, parameter, field, destination);
       } else {
         System.out.println("Non upload");
         Utility.setValue(object, request, parameter, field);
@@ -127,7 +136,8 @@ public class Utility {
     }
   }
 
-  public static Object save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, String url)
+  public static Object save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, String url,
+      String destination)
       throws Exception {
     String className = Utility.classToSave(request, mappingUrls, url);
     Vector<String> parameters = Utility.fields(className);
@@ -135,15 +145,16 @@ public class Utility {
     Constructor<?> constructor = clazz.getConstructor();
 
     Object reponse = constructor.newInstance();
-    Utility.runObject(reponse, request, parameters);
+    Utility.runObject(reponse, request, parameters, destination);
 
     return reponse;
   }
 
-  public static void save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, Object object)
+  public static void save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, Object object,
+      String destination)
       throws Exception {
     Vector<String> parameters = Utility.fields(object.getClass().getName());
-    Utility.runObject(object, request, parameters);
+    Utility.runObject(object, request, parameters, destination);
   }
 
   public static void resetObject(Object object) throws Exception {
