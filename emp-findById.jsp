@@ -1,4 +1,4 @@
-<%@page import="model.Dept, java.util.Set, java.util.HashMap"%>
+<%@page import="model.Emp, java.util.Set, java.util.HashMap"%>
 <%
   HashMap<String, Object> data = (HashMap<String, Object>) request.getAttribute("data");
 %>
@@ -19,16 +19,11 @@
     int i = 1;
     Set<String> keys = data.keySet();
     for (String key : keys) {
-      Dept d = (Dept) data.get(key);
-      out.println(d.getDeptName() + "<br>");
+      Emp e = (Emp) data.get(key);
+      out.println(e.getName() + " " + e.getAge() + "<br>");
       i ++;
     }
   %>
-
-  <form action="/framework/Insert/Dept" method="get">
-    <input type="text" name="deptName" placeholder="nom">
-    <input type="submit" value="Creer">
-  </form>
 
 </body>
 </html>
