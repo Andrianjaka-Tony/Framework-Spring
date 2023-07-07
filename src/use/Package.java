@@ -10,27 +10,26 @@ import annotation.Url;
 import etu1765.framework.Mapping;
 
 public class Package {
-  
+
   public static Vector<String> getFiles(String folder) {
     File file = new File(folder);
     Vector<String> reponse = new Vector<String>();
     File[] files = file.listFiles();
-    if(files == null) {
+    if (files == null) {
       return reponse;
     }
     for (int i = 0; i < files.length; i++) {
-      if(files[i].isDirectory()) {
+      if (files[i].isDirectory()) {
         reponse.addAll(
-          getFiles(files[i].getPath())
-        );
+            getFiles(files[i].getPath().replace('\\', '/')));
       } else {
-        if(files[i].getName().endsWith(".class")) {
-          reponse.add(file.getPath() + "." + files[i].getName().replace(".class", ""));
-        }        
+        if (files[i].getName().endsWith(".class")) {
+          reponse.add(file.getPath().replace('\\', '/') + "." + files[i].getName().replace(".class", ""));
+        }
       }
     }
     for (int i = 0; i < reponse.size(); i++) {
-      if(false == reponse.get(i).startsWith("./")) {
+      if (false == reponse.get(i).startsWith("./")) {
         reponse.set(i, reponse.get(i).replace('/', '.'));
       } else {
         reponse.set(i, reponse.get(i).replace('/', '.').substring(2));
@@ -45,8 +44,7 @@ public class Package {
     String remove = absolutePath.replace('/', '.') + ".";
     for (String string : files) {
       reponse.add(
-        string.replaceAll(remove, "")
-      );
+          string.replaceAll(remove, ""));
     }
     return reponse;
   }
