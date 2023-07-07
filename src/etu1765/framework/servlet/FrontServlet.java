@@ -3,7 +3,6 @@ package etu1765.framework.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Set;
@@ -23,11 +22,10 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import annotation.Auth;
-import annotation.RestAPI;
-import annotation.UseSession;
 
 @MultipartConfig(fileSizeThreshold = 2240 * 2240, maxFileSize = 2240 * 2240, maxRequestSize = 2240 * 2240 * 5 * 5)
 public class FrontServlet extends HttpServlet {
+
   HashMap<String, Mapping> mappingUrls;
   HashMap<String, Object> objects;
   String path;
@@ -40,81 +38,9 @@ public class FrontServlet extends HttpServlet {
     }
   }
 
-  public HashMap<String, Object> loadSessions(HttpServletRequest request) {
-    HttpSession session = request.getSession();
-    HashMap<String, Object> sessionValuesMap = new HashMap<String, Object>();
-
-    java.util.Enumeration<String> attributeNames = session.getAttributeNames();
-    while (attributeNames.hasMoreElements()) {
-      String attributeName = attributeNames.nextElement();
-      Object attributeValue = session.getAttribute(attributeName);
-      sessionValuesMap.put(attributeName, attributeValue);
-    }
-
-    return sessionValuesMap;
-  }
-
-  public Object realObject(String className) {
-    Object o = null;
-    if (this.objects.get(className) != null) {
-      o = this.objects.get(className);
-    } else {
-      try {
-        Class<?> classe = Class.forName(className);
-        Constructor<?> constructor = classe.getDeclaredConstructor();
-        o = constructor.newInstance();
-      } catch (Exception e) {
-      }
-    }
-    return o;
-  }
-
-  public String loadJSON(String url, HttpServletRequest req) {
-    try {
-      Method method = ModelView.getMethod(url, mappingUrls);
-      if (ModelView.isAuth(method)) {
-        String session = (String) method.getDeclaredAnnotation(Auth.class).getClass().getDeclaredMethod("session")
-            .invoke(method.getDeclaredAnnotation(Auth.class));
-        String value = (String) method.getDeclaredAnnotation(Auth.class).getClass().getDeclaredMethod("value")
-            .invoke(method.getDeclaredAnnotation(Auth.class));
-        HttpSession session2 = req.getSession();
-        String sessValue = (String) session2.getAttribute(session);
-        if (value.equals(sessValue) == false) {
-          String response = "Session absente";
-          return response;
-        }
-      }
-    } catch (Exception e) {
-    }
-
-    String className = mappingUrls.get(url).getClassName();
-    Object o = realObject(className);
-    String response = "";
-    try {
-      Method method = ModelView.getMethod(url, mappingUrls);
-      if (!ModelView.hasParameters(url, mappingUrls)) {
-        response = (String) method.invoke(o);
-      } else {
-        response = (String) method.invoke(o, ModelView.loadParameters(url, mappingUrls, req));
-      }
-    } catch (Exception e) {
-    }
-    return response;
-  }
-
   public ModelView loadView(String url, HttpServletRequest req) {
-    String className = mappingUrls.get(url).getClassName();
-    Object o = realObject(className);
-
     try {
       Method method = ModelView.getMethod(url, mappingUrls);
-
-      if (method.isAnnotationPresent(UseSession.class)) {
-        Field field = o.getClass().getDeclaredField("session");
-        field.setAccessible(true);
-        field.set(o, this.loadSessions(req));
-      }
-
       if (ModelView.isAuth(method)) {
         String session = (String) method.getDeclaredAnnotation(Auth.class).getClass().getDeclaredMethod("session")
             .invoke(method.getDeclaredAnnotation(Auth.class));
@@ -130,6 +56,18 @@ public class FrontServlet extends HttpServlet {
     } catch (Exception e) {
     }
 
+    String className = mappingUrls.get(url).getClassName();
+    Object o = new Object();
+    if (this.objects.get(className) != null) {
+      o = this.objects.get(className);
+    } else {
+      try {
+        Class<?> classe = Class.forName(className);
+        Constructor<?> constructor = classe.getDeclaredConstructor();
+        o = constructor.newInstance();
+      } catch (Exception e) {
+      }
+    }
     ModelView modelView = new ModelView();
     try {
       modelView = ModelView.loadView(url, this.mappingUrls, req, o);
@@ -145,18 +83,18 @@ public class FrontServlet extends HttpServlet {
     modelView.addItem("form", this.objects.get(className));
   }
 
-  public void executeNonSingleton(HttpServletRequest req, ModelView modelView, String url) throws Exception {
-    Object object = Utility.save(req, mappingUrls, url);
+  public void executeNonSingleton(HttpServletRequest req, ModelView modelView) throws Exception {
+    Object object = Utility.save(req, mappingUrls);
     modelView.addItem("form", object);
   }
 
-  public void save(HttpServletRequest req, ModelView modelView, String url) {
+  public void save(HttpServletRequest req, ModelView modelView) {
     try {
-      String className = Utility.classToSave(req, mappingUrls, url);
+      String className = Utility.classToSave(req, mappingUrls);
       if (this.objects.get(className) != null) {
         this.executeSingleton(req, modelView, className);
       } else {
-        this.executeNonSingleton(req, modelView, url);
+        this.executeNonSingleton(req, modelView);
       }
     } catch (Exception e) {
     }
@@ -168,8 +106,19 @@ public class FrontServlet extends HttpServlet {
     dispatcher.forward(req, resp);
   }
 
-  public void doSave(HttpServletRequest req, ModelView modelView, String url) {
-    save(req, modelView, url);
+  public boolean isSave(HttpServletRequest req) {
+    boolean save = false;
+    try {
+      save = Utility.isSave(req, mappingUrls);
+    } catch (Exception e) {
+    }
+    return save;
+  }
+
+  public void doSave(HttpServletRequest req, ModelView modelView) {
+    if (isSave(req)) {
+      save(req, modelView);
+    }
   }
 
   public void init() {
@@ -184,33 +133,21 @@ public class FrontServlet extends HttpServlet {
     }
   }
 
-  public void normalTreatment(ModelView modelView, HttpServletRequest req, HttpServletResponse resp, String url)
+  public void normalTreatment(ModelView modelView, HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException, Exception {
     if (modelView.getViewName().equals("/error.jsp")) {
       this.dispatch(req, resp, modelView);
       return;
     }
-    doSave(req, modelView, url);
+    doSave(req, modelView);
     this.dispatch(req, resp, modelView);
   }
 
-  public void modelViewJSON(ModelView modelView, HttpServletResponse response) throws Exception {
+  public void JSONTreatment(ModelView modelView, HttpServletResponse response) throws Exception {
     response.setContentType("application/json");
     PrintWriter out = response.getWriter();
     String json = JSON.stringify(modelView.getDatas());
     out.println(json);
-  }
-
-  public boolean restAPI(String url) {
-    boolean restAPI = false;
-    try {
-      Method method = ModelView.getMethod(url, mappingUrls);
-      if (method.isAnnotationPresent(RestAPI.class)) {
-        restAPI = true;
-      }
-    } catch (Exception e) {
-    }
-    return restAPI;
   }
 
   protected void processRequest(HttpServletRequest req, HttpServletResponse resp)
@@ -218,18 +155,12 @@ public class FrontServlet extends HttpServlet {
     String url = String.valueOf(req.getRequestURL());
     url = Utility.getUrl(url);
 
-    if (restAPI(url)) {
-      resp.setContentType("application/json");
-      PrintWriter out = resp.getWriter();
-      String json = this.loadJSON(url, req);
-      out.println(json);
+    // * Checker si on va save
+    ModelView modelView = this.loadView(url, req);
+    if (!modelView.isJson()) {
+      this.normalTreatment(modelView, req, resp);
     } else {
-      ModelView modelView = this.loadView(url, req);
-      if (!modelView.isJson()) {
-        this.normalTreatment(modelView, req, resp, url);
-      } else {
-        this.modelViewJSON(modelView, resp);
-      }
+      this.JSONTreatment(modelView, resp);
     }
   }
 

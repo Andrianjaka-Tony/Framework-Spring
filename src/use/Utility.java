@@ -7,6 +7,7 @@ import java.lang.reflect.Field;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 
 import etu1765.framework.FileUpload;
@@ -36,6 +37,11 @@ public class Utility {
 
   public static Vector<String> parameters(HttpServletRequest request) {
     Vector<String> reponse = new Vector<String>();
+    // Enumeration<String> parameters = request.getParameterNames();
+
+    // while (parameters.hasMoreElements()) {
+    // reponse.add(parameters.nextElement());
+    // }
     Map<String, String[]> parameterMap = request.getParameterMap();
     for (String paramName : parameterMap.keySet()) {
       reponse.add(paramName);
@@ -63,10 +69,38 @@ public class Utility {
     return reponse;
   }
 
-  public static String classToSave(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, String url)
-      throws Exception {
+  public static int countRequestFields(HttpServletRequest request, String className) throws Exception {
+    int reponse = 0;
+    Vector<String> fields = Utility.fields(className);
+    for (String field : fields) {
+      if (request.getPart(field) != null) {
+        reponse++;
+      }
+    }
+
+    return reponse;
+  }
+
+  public static boolean isSave(HttpServletRequest request, HashMap<String, Mapping> mappingUrls) throws Exception {
+    Set<String> keys = mappingUrls.keySet();
+    for (String key : keys) {
+      String className = mappingUrls.get(key).getClassName();
+      if (Utility.countRequestFields(request, className) == Utility.fields(className).size()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static String classToSave(HttpServletRequest request, HashMap<String, Mapping> mappingUrls) throws Exception {
     String reponse = "";
-    reponse = mappingUrls.get(url).getClassName();
+    Set<String> keys = mappingUrls.keySet();
+    for (String key : keys) {
+      String className = mappingUrls.get(key).getClassName();
+      if (Utility.countRequestFields(request, className) == Utility.fields(className).size()) {
+        return className;
+      }
+    }
     return reponse;
   }
 
@@ -99,9 +133,6 @@ public class Utility {
   public static void setValue(Object object, HttpServletRequest request, String parameter, Field field)
       throws Exception {
     String value = request.getParameter(parameter);
-    if (value == null) {
-      return;
-    }
     if (field.getGenericType().getTypeName().compareTo("java.lang.Integer") == 0) {
       field.set(object, Integer.valueOf(value));
     } else if (field.getGenericType().getTypeName().compareTo("java.lang.Double") == 0) {
@@ -118,18 +149,15 @@ public class Utility {
 
       if (object.getClass().getDeclaredField(parameter).getType().getSimpleName()
           .compareToIgnoreCase("FileUpload") == 0) {
-        System.out.println("Upload");
         Utility.uploadFile(object, request, parameter, field);
       } else {
-        System.out.println("Non upload");
         Utility.setValue(object, request, parameter, field);
       }
     }
   }
 
-  public static Object save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls, String url)
-      throws Exception {
-    String className = Utility.classToSave(request, mappingUrls, url);
+  public static Object save(HttpServletRequest request, HashMap<String, Mapping> mappingUrls) throws Exception {
+    String className = Utility.classToSave(request, mappingUrls);
     Vector<String> parameters = Utility.fields(className);
     Class<?> clazz = Class.forName(className);
     Constructor<?> constructor = clazz.getConstructor();
