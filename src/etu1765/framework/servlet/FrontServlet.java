@@ -2,8 +2,10 @@ package etu1765.framework.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.HashMap;
-// import java.util.Set;
+import java.util.Set;
 
 import use.Package;
 import use.Utility;
@@ -16,6 +18,9 @@ import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import annotation.Auth;
 
 @MultipartConfig(fileSizeThreshold = 2240 * 2240, maxFileSize = 2240 * 2240, maxRequestSize = 2240 * 2240 * 5 * 5)
 public class FrontServlet extends HttpServlet {
@@ -23,6 +28,83 @@ public class FrontServlet extends HttpServlet {
   HashMap<String, Mapping> mappingUrls;
   HashMap<String, Object> objects;
   String path;
+
+  public void updateSession(HttpServletRequest request, ModelView modelView) {
+    HttpSession session = request.getSession();
+    Set<String> keys = modelView.getSessions().keySet();
+    for (String key : keys) {
+      session.setAttribute(key, modelView.getSessions().get(key));
+    }
+  }
+
+  public ModelView loadView(String url, HttpServletRequest req) {
+    try {
+      Method method = ModelView.getMethod(url, mappingUrls);
+      if (ModelView.isAuth(method)) {
+        String session = (String) method.getDeclaredAnnotation(Auth.class).getClass().getDeclaredMethod("session")
+            .invoke(method.getDeclaredAnnotation(Auth.class));
+        String value = (String) method.getDeclaredAnnotation(Auth.class).getClass().getDeclaredMethod("value")
+            .invoke(method.getDeclaredAnnotation(Auth.class));
+        HttpSession session2 = req.getSession();
+        String sessValue = (String) session2.getAttribute(session);
+        if (value.equals(sessValue) == false) {
+          ModelView response = new ModelView("/error.jsp");
+          System.out.println("Auth");
+          return response;
+        }
+      }
+    } catch (Exception e) {
+    }
+
+    String className = mappingUrls.get(url).getClassName();
+    Object o = new Object();
+    if (this.objects.get(className) != null) {
+      o = this.objects.get(className);
+    } else {
+      try {
+        Class<?> classe = Class.forName(className);
+        Constructor<?> constructor = classe.getDeclaredConstructor();
+        o = constructor.newInstance();
+      } catch (Exception e) {
+      }
+    }
+    ModelView modelView = new ModelView();
+    try {
+      modelView = ModelView.loadView(url, this.mappingUrls, req, o);
+    } catch (Exception e) {
+    }
+    updateSession(req, modelView);
+    return modelView;
+  }
+
+  public void executeSingleton(HttpServletRequest req, ModelView modelView, String className) throws Exception {
+    Utility.resetObject(this.objects.get(className));
+    Utility.save(req, mappingUrls, this.objects.get(className));
+    modelView.addItem("form", this.objects.get(className));
+  }
+
+  public void executeNonSingleton(HttpServletRequest req, ModelView modelView) throws Exception {
+    Object object = Utility.save(req, mappingUrls);
+    modelView.addItem("form", object);
+  }
+
+  public void save(HttpServletRequest req, ModelView modelView) {
+    try {
+      String className = Utility.classToSave(req, mappingUrls);
+      if (this.objects.get(className) != null) {
+        this.executeSingleton(req, modelView, className);
+      } else {
+        this.executeNonSingleton(req, modelView);
+      }
+    } catch (Exception e) {
+    }
+  }
+
+  public void dispatch(HttpServletRequest req, HttpServletResponse resp, ModelView modelView) throws Exception {
+    req.setAttribute("data", modelView.getDatas());
+    RequestDispatcher dispatcher = req.getRequestDispatcher(modelView.getViewName());
+    dispatcher.forward(req, resp);
+  }
 
   public void init() {
     ServletContext context = getServletContext();
@@ -33,51 +115,35 @@ public class FrontServlet extends HttpServlet {
       this.mappingUrls = Package.scanPackages(this.path);
       this.objects = Package.singletons(this.path);
     } catch (Exception e) {
-      System.out.println(e.getMessage());
     }
   }
 
   protected void processRequest(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException, Exception {
-    PrintWriter out = resp.getWriter();
     String url = String.valueOf(req.getRequestURL());
     url = Utility.getUrl(url);
 
-    // Checker si l'URL est l'URL de base
+    // * Checker si l'URL est l'URL de base
     if (url.compareToIgnoreCase("/") == 0) {
       RequestDispatcher dispatcher = req.getRequestDispatcher("index.jsp");
       dispatcher.forward(req, resp);
     }
 
-    // Checker si on va save
-    ModelView modelView = ModelView.loadView(url, this.mappingUrls, req);
+    // * Checker si on va save
+    ModelView modelView = this.loadView(url, req);
+    if (modelView.getViewName().equals("/error.jsp")) {
+      this.dispatch(req, resp, modelView);
+      return;
+    }
     boolean save = false;
     try {
       save = Utility.isSave(req, mappingUrls);
     } catch (Exception e) {
-      System.out.println(e);
     }
-    // si on save
     if (save) {
-      try {
-        String className = Utility.classToSave(req, mappingUrls);
-        if (this.objects.get(className) != null) {
-          Utility.resetObject(this.objects.get(className));
-          Utility.save(req, mappingUrls, this.objects.get(className));
-          modelView.addItem("form", this.objects.get(className));
-          System.out.println(this.objects.get(className));
-        } else {
-          Object object = Utility.save(req, mappingUrls);
-          modelView.addItem("form", object);
-        }
-      } catch (Exception e) {
-        out.println(e.getMessage());
-      }
+      save(req, modelView);
     }
-
-    req.setAttribute("data", modelView.getDatas());
-    RequestDispatcher dispatcher = req.getRequestDispatcher(modelView.getViewName());
-    dispatcher.forward(req, resp);
+    this.dispatch(req, resp, modelView);
   }
 
   @Override
